@@ -13,8 +13,8 @@ import java.util.stream.Stream;
 
 public class FileLocator {
 
-    public static List<Map<String, String>> getListOfApps(String baseDirectory, String domain){
-        File localRepository = new File(baseDirectory + "/" + domain);
+    public static List<Map<String, String>> getListOfApps(String baseDirectory, String environment, String domain){
+        File localRepository = new File(baseDirectory + "/" + environment);
         ObjectMapper mapper = new ObjectMapper();
 
         return Arrays.stream(Objects.requireNonNull(localRepository.listFiles()))
@@ -22,9 +22,11 @@ public class FileLocator {
                 .flatMap(appDirectory -> findConfigJson(appDirectory)
                         .map(file -> {
                             Map<String, String> applicationData = readJsonProperties(file, Arrays.asList("APP_CPU_REQUEST", "APP_CPU_LIMIT", "APP_MEMORY_REQUEST", "APP_MEMORY_LIMIT"), mapper);
+
                             applicationData.put("DOMAIN", domain);
                             applicationData.put("APPLICATION_NAME", file.getParentFile().getParentFile().getParentFile().getName());
-                            applicationData.put("ENV", "env");
+                            applicationData.put("ENV", environment);
+
                             return applicationData;
                         }))
                 .toList();
