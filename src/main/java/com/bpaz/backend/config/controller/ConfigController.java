@@ -4,6 +4,7 @@ import com.bpaz.backend.config.DTO.ConfigDTO;
 import com.bpaz.backend.config.service.ConfigService;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +19,15 @@ public class ConfigController {
 
     private final ConfigService configService;
 
+    @Value("${git.username}")
+    private String username;
+
+    @Value("${git.password}")
+    private String password;
+
+    @Value("${git.remoteUrl}")
+    private String remoteUrl;
+
     @Autowired
     public ConfigController(ConfigService configService){
         this.configService = configService;
@@ -25,7 +35,6 @@ public class ConfigController {
 
     @GetMapping("/{domain}")
     public List<ConfigDTO> getConfigs(@PathVariable String domain) throws GitAPIException, IOException {
-        String remote_url = "https://github.com/siddharthanR/config-pb.git";
-        return configService.createConfigMap(domain, remote_url);
+        return configService.createConfigMap(domain, remoteUrl, username, password);
     }
 }

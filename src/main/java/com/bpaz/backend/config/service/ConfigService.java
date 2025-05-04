@@ -6,11 +6,11 @@ import com.bpaz.backend.config.utils.FileLocator;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
@@ -33,15 +33,21 @@ public class ConfigService {
         this.configMapper = configMapper;
     }
 
-    public List<ConfigDTO> createConfigMap(String domain, String REPO_URL) throws GitAPIException, IOException, FileNotFoundException {
+    public List<ConfigDTO> createConfigMap(String domain, String REPO_URL, String username, String password) throws GitAPIException, IOException {
         File localPath = new File(LOCAL_CLONE_DIRECTORY);
         Path localPathAsPath = localPath.toPath();
+
+        log.info("Deleting the local repository:");
         FileLocator.deleteDirectory(localPathAsPath);
+
+        log.info("Setting up username and password for cloning:");
+        UsernamePasswordCredentialsProvider userNameAndPassword = new UsernamePasswordCredentialsProvider(username, password);
 
         log.info("Cloning git repository to local folder:");
         Git.cloneRepository()
                 .setURI(REPO_URL)
                 .setDirectory(localPath)
+                .setCredentialsProvider(userNameAndPassword)
                 .call();
 
         File appDirectory = new File(LOCAL_CLONE_DIRECTORY + APPS_CONFIGURATION_DIRECTORY);
@@ -72,6 +78,7 @@ public class ConfigService {
             infrastructureData.addAll(apaasDataForEveryApps);
         }
 
+        log.info("Deleting the local repository:");
         FileLocator.deleteDirectory(localPathAsPath);
 
         return configMapper.mapToDto(infrastructureData);
