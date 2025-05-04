@@ -18,6 +18,8 @@ public class ConfigMapper {
         dto.setAppMemoryRequest(map.get("APP_MEMORY_REQUEST"));
         dto.setAppCpuLimit(map.get("APP_CPU_LIMIT"));
         dto.setAppMemoryLimit(map.get("APP_MEMORY_LIMIT"));
+        dto.setReplicas(map.get("REPLICAS"));
+        dto.setApaasV4Id(map.get("apaasV4ID"));
         return dto;
     }
 

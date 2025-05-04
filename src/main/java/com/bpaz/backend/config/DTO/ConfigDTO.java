@@ -1,12 +1,10 @@
 package com.bpaz.backend.config.DTO;
 
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
+@Data
 @NoArgsConstructor
-@Getter
-@Setter
 public class ConfigDTO {
 
     private String applicationName;
@@ -16,5 +14,7 @@ public class ConfigDTO {
     private String appMemoryRequest;
     private String appCpuLimit;
     private String appMemoryLimit;
+    private String replicas;
+    private String apaasV4Id;
 
 }

@@ -13,34 +13,53 @@ import java.util.stream.Stream;
 
 public class FileLocator {
 
-    public static List<Map<String, String>> getListOfApps(String baseDirectory, String environment, String domain){
-        File localRepository = new File(baseDirectory + "/" + environment);
-        ObjectMapper mapper = new ObjectMapper();
+    public static List<Map<String, String>> getApaasId(String baseDirectory, String environment, Map<String, Map<String, String>> applicationMapBasedOnEnv){
+        File localRepository = new File(baseDirectory + environment);
+        ObjectMapper objectMapper = new ObjectMapper();
 
         return Arrays.stream(Objects.requireNonNull(localRepository.listFiles()))
                 .filter(File::isDirectory)
-                .flatMap(appDirectory -> findConfigJson(appDirectory)
-                        .map(file -> {
-                            Map<String, String> applicationData = readJsonProperties(file, Arrays.asList("APP_CPU_REQUEST", "APP_CPU_LIMIT", "APP_MEMORY_REQUEST", "APP_MEMORY_LIMIT"), mapper);
+                .flatMap(file -> findConfigJson(file, "infra.json"))
+                .map(file -> {
+                    Map<String, String> infrastructureMap = readJsonProperties(file, List.of("apaasV4ID"), objectMapper);
+                    String applicationName = file.getParentFile().getParentFile().getParentFile().getName();
+                    Map<String, String> applicationMap = applicationMapBasedOnEnv.get(applicationName);
 
-                            applicationData.put("DOMAIN", domain);
-                            applicationData.put("APPLICATION_NAME", file.getParentFile().getParentFile().getParentFile().getName());
-                            applicationData.put("ENV", environment);
-
-                            return applicationData;
-                        }))
+                    applicationMap.put("apaasV4ID", infrastructureMap.get("apaasV4ID"));
+                    return applicationMap;
+                })
                 .toList();
     }
 
-    private static Stream<File> findConfigJson(File dir) {
+    public static Map<String, Map<String, String>> getApplicationConfigs(String baseDirectory, String environment, String domain){
+        File localRepository = new File(baseDirectory + environment);
+        ObjectMapper mapper = new ObjectMapper();
+
+        Map<String, Map<String, String>> groupByApplications = new HashMap<>();
+
+        Arrays.stream(Objects.requireNonNull(localRepository.listFiles()))
+               .filter(File::isDirectory)
+                .flatMap(file -> findConfigJson(file, "config.json"))
+                .forEach(file -> {
+                    Map<String, String> applicationMap = readJsonProperties(file, Arrays.asList("APP_CPU_REQUEST", "APP_CPU_LIMIT", "APP_MEMORY_REQUEST", "APP_MEMORY_LIMIT", "REPLICAS"), mapper);
+                    String applicationName = file.getParentFile().getParentFile().getParentFile().getName();
+                    applicationMap.put("APPLICATION_NAME", applicationName);
+                    applicationMap.put("DOMAIN", domain);
+                    applicationMap.put("ENV", environment);
+                    groupByApplications.put(applicationName, applicationMap);
+                });
+        return groupByApplications;
+    }
+
+    private static Stream<File> findConfigJson(File dir, String fileName) {
         File[] files = dir.listFiles();
         if (files == null) return Stream.empty();
 
         return Arrays.stream(files)
                 .flatMap(file -> {
                     if (file.isDirectory()) {
-                        return findConfigJson(file); // recursive
-                    } else if (file.getName().equalsIgnoreCase("config.json")) {
+                        return findConfigJson(file, fileName); // recursive
+                    } else if (file.getName().equalsIgnoreCase(fileName)) {
                         return Stream.of(file); // found it
                     } else {
                         return Stream.empty();
@@ -55,6 +74,8 @@ public class FileLocator {
             for (String key : keys) {
                 if (root.has(key)) {
                     result.put(key, root.get(key).asText());
+                } else {
+                    result.put(key, "-");
                 }
             }
         } catch (IOException e) {
