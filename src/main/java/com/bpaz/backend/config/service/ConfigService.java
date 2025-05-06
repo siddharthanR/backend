@@ -2,6 +2,8 @@ package com.bpaz.backend.config.service;
 
 import com.bpaz.backend.config.DTO.ConfigDTO;
 import com.bpaz.backend.config.mapper.ConfigMapper;
+import com.bpaz.backend.config.model.Config;
+import com.bpaz.backend.config.repository.ConfigRepository;
 import com.bpaz.backend.config.utils.FileLocator;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
@@ -22,6 +24,8 @@ public class ConfigService {
 
     private final ConfigMapper configMapper;
 
+    private final ConfigRepository configRepository;
+
     private static final String LOCAL_CLONE_DIRECTORY = "cloned-repo";
 
     private static final String APPS_CONFIGURATION_DIRECTORY = "/apps/UK/";
@@ -29,8 +33,9 @@ public class ConfigService {
     private static final String INFRA_CONFIGURATION_DIRECTORY = "/infra/UK/";
 
     @Autowired
-    public ConfigService(ConfigMapper configMapper) {
+    public ConfigService(ConfigMapper configMapper, ConfigRepository configRepository) {
         this.configMapper = configMapper;
+        this.configRepository = configRepository;
     }
 
     public List<ConfigDTO> createConfigMap(String domain, String REPO_URL, String username, String password) throws GitAPIException, IOException {
@@ -50,38 +55,56 @@ public class ConfigService {
                 .setCredentialsProvider(userNameAndPassword)
                 .call();
 
+        log.info("Reading application configuration:");
+        Map<String, Map<String, Map<String, String>>> applications = this.readApplicationConfiguration(domain);
+
+        log.info("Reading infrastructure configuration");
+        List<Map<String, String>> infrastructureData =  this.readInfraStructureConfiguration(applications, domain);
+
+        log.info("Deleting the local repository:");
+        FileLocator.deleteDirectory(localPathAsPath);
+
+        log.info("Converting Map to DTO:");
+        List<ConfigDTO> appConfigsDTO = configMapper.mapToDto(infrastructureData);
+
+        log.info("Converting DTO to Model:");
+        List<Config> appConfigsData = configMapper.dtoToModel(appConfigsDTO);
+
+        return configMapper.mapToDto(infrastructureData);
+    }
+
+    public Map<String, Map<String, Map<String, String>>> readApplicationConfiguration(String domain){
         File appDirectory = new File(LOCAL_CLONE_DIRECTORY + APPS_CONFIGURATION_DIRECTORY);
 
         log.info("List of environments in apps:");
         Set<String> appEnvironments = this.getEnvironments(appDirectory);
 
-        log.info("Reading application configuration:");
         Map<String, Map<String, String>> applicationData;
-        Map<String, Map<String, Map<String, String>>> applications = new HashMap<>();
+        Map<String, Map<String, Map<String, String>>> applications =  new HashMap<>();
 
         for(String environment : appEnvironments){
             applicationData = FileLocator.getApplicationConfigs(LOCAL_CLONE_DIRECTORY + APPS_CONFIGURATION_DIRECTORY, environment, domain);
             applications.put(environment, applicationData);
         }
 
+        return applications;
+    }
+
+    public List<Map<String, String>> readInfraStructureConfiguration(Map<String, Map<String, Map<String, String>>> applications, String domain){
         File infraDirectory = new File(LOCAL_CLONE_DIRECTORY + INFRA_CONFIGURATION_DIRECTORY);
 
         log.info("List of environments in infra:");
         Set<String> infraEnvironments = this.getEnvironments(infraDirectory);
 
-        log.info("Reading infrastructure configuration");
         List<Map<String, String>> apaasDataForEveryApps;
         List<Map<String, String>> infrastructureData =  new ArrayList<>();
 
         for(String environment : infraEnvironments){
-            apaasDataForEveryApps = FileLocator.getApaasId(LOCAL_CLONE_DIRECTORY + INFRA_CONFIGURATION_DIRECTORY, environment, applications.get(environment));
+            apaasDataForEveryApps = FileLocator.getApaasId(LOCAL_CLONE_DIRECTORY + INFRA_CONFIGURATION_DIRECTORY, environment, applications.get(environment), domain);
             infrastructureData.addAll(apaasDataForEveryApps);
         }
 
-        log.info("Deleting the local repository:");
-        FileLocator.deleteDirectory(localPathAsPath);
-
-        return configMapper.mapToDto(infrastructureData);
+        return infrastructureData;
     }
 
     //returns list of environments available under applications directory

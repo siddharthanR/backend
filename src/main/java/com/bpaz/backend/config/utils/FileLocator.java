@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 
 public class FileLocator {
 
-    public static List<Map<String, String>> getApaasId(String baseDirectory, String environment, Map<String, Map<String, String>> applicationMapBasedOnEnv){
+    public static List<Map<String, String>> getApaasId(String baseDirectory, String environment, Map<String, Map<String, String>> applicationMapBasedOnEnv, String domain){
         File localRepository = new File(baseDirectory + environment);
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -22,12 +22,30 @@ public class FileLocator {
                 .flatMap(file -> findConfigJson(file, "infra.json"))
                 .map(file -> {
                     Map<String, String> infrastructureMap = readJsonProperties(file, List.of("apaasV4ID"), objectMapper);
-                    String applicationName = file.getParentFile().getParentFile().getParentFile().getName();
-                    Map<String, String> applicationMap = applicationMapBasedOnEnv.get(applicationName);
+                    String applicationName = file.getParentFile().getName();
+                    Map<String, String> applicationMap = new HashMap<>();
+                    if(applicationMapBasedOnEnv.get(applicationName)!=null && infrastructureMap.get("apaasV4ID")!=null) {
+                        applicationMap = applicationMapBasedOnEnv.get(applicationName);
+                        applicationMap.put("apaasV4ID", infrastructureMap.get("apaasV4ID"));
+                    } else if(infrastructureMap.get("apaasV4ID")!=null){
+                        applicationMap.put("apaasV4ID", infrastructureMap.get("apaasV4ID"));
+                        applicationMap.put("APPLICATION_NAME", applicationName);
+                        applicationMap.put("DOMAIN", domain);
+                        applicationMap.put("ENV", environment);
 
-                    applicationMap.put("apaasV4ID", infrastructureMap.get("apaasV4ID"));
+                        //populating 0 for rest of the fields as no data available
+                        applicationMap.put("APP_CPU_REQUEST", "0");
+                        applicationMap.put("APP_CPU_LIMIT", "0");
+                        applicationMap.put("APP_MEMORY_REQUEST", "0");
+                        applicationMap.put("APP_MEMORY_LIMIT", "0");
+                        applicationMap.put("REPLICAS", "0");
+                    }
+                    else {
+                        return null;
+                    }
                     return applicationMap;
                 })
+                .filter(Objects::nonNull)
                 .toList();
     }
 
