@@ -2,6 +2,10 @@ package com.bpaz.backend.config.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +16,17 @@ import java.util.List;
 import java.util.stream.Stream;
 
 public class FileLocator {
+
+    public static void gitCheckoutCode(String REPO_URL, File localPath, String username, String password) throws GitAPIException {
+        UsernamePasswordCredentialsProvider userNameAndPassword = new UsernamePasswordCredentialsProvider(username, password);
+
+        Git.cloneRepository()
+                .setURI(REPO_URL)
+                .setDirectory(localPath)
+                .setCredentialsProvider(userNameAndPassword)
+                .setBranch("master")
+                .call();
+    }
 
     public static List<Map<String, String>> getApaasId(String baseDirectory, String environment, Map<String, Map<String, String>> applicationMapBasedOnEnv, String domain){
         File localRepository = new File(baseDirectory + environment);
@@ -27,18 +42,6 @@ public class FileLocator {
                     if(applicationMapBasedOnEnv.get(applicationName)!=null && infrastructureMap.get("apaasV4ID")!=null) {
                         applicationMap = applicationMapBasedOnEnv.get(applicationName);
                         applicationMap.put("apaasV4ID", infrastructureMap.get("apaasV4ID"));
-                    } else if(infrastructureMap.get("apaasV4ID")!=null){
-                        applicationMap.put("apaasV4ID", infrastructureMap.get("apaasV4ID"));
-                        applicationMap.put("APPLICATION_NAME", applicationName);
-                        applicationMap.put("DOMAIN", domain);
-                        applicationMap.put("ENV", environment);
-
-                        //populating 0 for rest of the fields as no data available
-                        applicationMap.put("APP_CPU_REQUEST", "0");
-                        applicationMap.put("APP_CPU_LIMIT", "0");
-                        applicationMap.put("APP_MEMORY_REQUEST", "0");
-                        applicationMap.put("APP_MEMORY_LIMIT", "0");
-                        applicationMap.put("REPLICAS", "0");
                     }
                     else {
                         return null;

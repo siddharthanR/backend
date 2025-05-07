@@ -6,11 +6,10 @@ import com.bpaz.backend.config.model.Config;
 import com.bpaz.backend.config.repository.ConfigRepository;
 import com.bpaz.backend.config.utils.FileLocator;
 import lombok.extern.slf4j.Slf4j;
-import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,6 +37,7 @@ public class ConfigService {
         this.configRepository = configRepository;
     }
 
+    @Transactional
     public List<ConfigDTO> createConfigMap(String domain, String REPO_URL, String username, String password) throws GitAPIException, IOException {
         File localPath = new File(LOCAL_CLONE_DIRECTORY);
         Path localPathAsPath = localPath.toPath();
@@ -45,15 +45,8 @@ public class ConfigService {
         log.info("Deleting the local repository:");
         FileLocator.deleteDirectory(localPathAsPath);
 
-        log.info("Setting up username and password for cloning:");
-        UsernamePasswordCredentialsProvider userNameAndPassword = new UsernamePasswordCredentialsProvider(username, password);
-
-        log.info("Cloning git repository to local folder:");
-        Git.cloneRepository()
-                .setURI(REPO_URL)
-                .setDirectory(localPath)
-                .setCredentialsProvider(userNameAndPassword)
-                .call();
+        log.info("Cloning git repo to local:");
+        FileLocator.gitCheckoutCode(REPO_URL, localPath, username, password);
 
         log.info("Reading application configuration:");
         Map<String, Map<String, Map<String, String>>> applications = this.readApplicationConfiguration(domain);
@@ -69,6 +62,8 @@ public class ConfigService {
 
         log.info("Converting DTO to Model:");
         List<Config> appConfigsData = configMapper.dtoToModel(appConfigsDTO);
+
+        configRepository.saveAllConfigsAndFlush(appConfigsData);
 
         return configMapper.mapToDto(infrastructureData);
     }

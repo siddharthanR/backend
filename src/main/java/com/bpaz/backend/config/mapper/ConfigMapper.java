@@ -10,6 +10,7 @@ import java.util.Map;
 @Component
 public class ConfigMapper {
 
+    //Converting DTO to Entity
     public Config toModel(ConfigDTO configMap){
         Config config = new Config();
 
@@ -29,6 +30,7 @@ public class ConfigMapper {
         return appConfigs.stream().map(this::toModel).toList();
     }
 
+    //Converting Map to DTO
     public ConfigDTO toDto(Map<String, String> map) {
         ConfigDTO dto = new ConfigDTO();
         dto.setApplicationName(map.get("APPLICATION_NAME"));
