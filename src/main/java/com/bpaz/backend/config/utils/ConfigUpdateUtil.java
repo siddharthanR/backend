@@ -61,7 +61,7 @@ public class ConfigUpdateUtil {
         return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(updatedConfig);
     }
 
-    public static String createNewBranchAndSave(Git git, Path configPath, String configJson, String username, String password) throws GitAPIException, IOException{
+    public static String createNewBranchAndSave(Git git, Path configPath, String configJson, String username, String personalToken) throws GitAPIException, IOException{
         String newBranch = "updated-config.json" + System.currentTimeMillis();
         git.checkout().setCreateBranch(true).setName(newBranch).call();
         Files.writeString(configPath, configJson);
@@ -69,7 +69,7 @@ public class ConfigUpdateUtil {
         git.add().addFilepattern(String.valueOf(configPath)).call();
         git.commit().setMessage("Update config.json").call();
 
-        UsernamePasswordCredentialsProvider usernamePasswordCredentialsProvider = new UsernamePasswordCredentialsProvider(username, password);
+        UsernamePasswordCredentialsProvider usernamePasswordCredentialsProvider = new UsernamePasswordCredentialsProvider(username, personalToken);
 
         git.push().setCredentialsProvider(usernamePasswordCredentialsProvider).call();
 

@@ -1,6 +1,7 @@
 package com.bpaz.backend.config.controller;
 
 import com.bpaz.backend.config.DTO.ConfigUpdateRequestDTO;
+import com.bpaz.backend.config.DTO.ConfigUpdateResponseDTO;
 import com.bpaz.backend.config.service.ConfigUpdateService;
 import jakarta.validation.Valid;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -24,7 +25,7 @@ public class ConfigUpdateController {
     }
 
     @PostMapping("/")
-    public ResponseEntity<String> updateConfigsInRepository(@Valid @RequestBody ConfigUpdateRequestDTO configUpdateRequestDTO) throws GitAPIException, IOException {
+    public ConfigUpdateResponseDTO updateConfigsInRepository(@Valid @RequestBody ConfigUpdateRequestDTO configUpdateRequestDTO) throws GitAPIException, IOException {
         return configUpdateService.updateConfigs(configUpdateRequestDTO);
     }
 }

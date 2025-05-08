@@ -1,10 +1,12 @@
 package com.bpaz.backend.config.service;
 
 import com.bpaz.backend.config.DTO.ConfigUpdateRequestDTO;
+import com.bpaz.backend.config.DTO.ConfigUpdateResponseDTO;
 import com.bpaz.backend.config.utils.ConfigUpdateUtil;
 import com.bpaz.backend.config.utils.ConfigUtil;
 import com.bpaz.backend.config.utils.Utility;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
@@ -38,7 +40,11 @@ public class ConfigUpdateService {
     @Value("${git.remoteUrl}")
     private String remoteUrl;
 
-    private final String personalToken = "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";
+    @Value("${git.personalToken}")
+    private String personalToken;
+
+    @Value("${git.fineGrainedToken}")
+    private String fineGrainedToken;
 
     private final ObjectMapper objectMapper;
 
@@ -47,7 +53,7 @@ public class ConfigUpdateService {
         this.objectMapper = objectMapper;
     }
 
-    public ResponseEntity<String> updateConfigs(ConfigUpdateRequestDTO configUpdateRequestDTO) throws GitAPIException, IOException {
+    public ConfigUpdateResponseDTO updateConfigs(ConfigUpdateRequestDTO configUpdateRequestDTO) throws GitAPIException, IOException {
 
         File localRepository = new File(Utility.LOCAL_CLONE_DIRECTORY);
         Path localPath = localRepository.toPath();
@@ -73,28 +79,35 @@ public class ConfigUpdateService {
         return this.createPullRequest(newBranch, objectMapper);
     }
 
-    public ResponseEntity<String> createPullRequest(String newBranch, ObjectMapper objectMapper)throws JsonProcessingException {
+    public ConfigUpdateResponseDTO createPullRequest(String newBranch, ObjectMapper objectMapper)throws JsonProcessingException {
         RestTemplate restTemplate = new RestTemplate();
         MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
-        headers.add("Authorization", personalToken);
-        headers.add("Accept", "application/vnd.github.json");
+        headers.add("Authorization", "Bearer " + fineGrainedToken);
+        headers.add("Accept", "application/vnd.github+json");
 
         Map<String, String> prBody = new HashMap<>();
         prBody.put("title", "Config JSON update");
         prBody.put("head", newBranch);
         prBody.put("base", "main");
-        prBody.put("body", "This PR was created by Spring Boot + JGit");
+        prBody.put("body", "This PR was created to update the config.json");
         String json = objectMapper.writeValueAsString(prBody);
 
         HttpEntity<String> request = new HttpEntity<>(json, headers);
 
-        String pullRequestURL = "https://api.github.com/repos/siddharthanR/config-pb/pulls";
+        String gitHubRepositoryURL = "https://api.github.com/repos/siddharthanR/config-pb/pulls";
 
-        return restTemplate.exchange(
-                pullRequestURL,
+        ResponseEntity<String> response = restTemplate.exchange(
+                gitHubRepositoryURL,
                 HttpMethod.POST,
                 request,
                 String.class
         );
+
+        JsonNode responseInJson = objectMapper.readTree(response.getBody());
+        String pullRequestURL = responseInJson.get("html_url").asText();
+        ConfigUpdateResponseDTO configUpdateResponseDTO = new ConfigUpdateResponseDTO();
+        configUpdateResponseDTO.setPullRequestURL(pullRequestURL);
+
+        return configUpdateResponseDTO;
     }
 }
