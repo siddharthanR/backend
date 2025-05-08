@@ -4,7 +4,9 @@ import com.bpaz.backend.config.DTO.ConfigDTO;
 import com.bpaz.backend.config.mapper.ConfigMapper;
 import com.bpaz.backend.config.model.Config;
 import com.bpaz.backend.config.repository.ConfigRepository;
-import com.bpaz.backend.config.utils.FileLocator;
+import com.bpaz.backend.config.utils.ConfigUtil;
+import com.bpaz.backend.config.utils.Utility;
+import jdk.jshell.execution.Util;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,12 +27,6 @@ public class ConfigService {
 
     private final ConfigRepository configRepository;
 
-    private static final String LOCAL_CLONE_DIRECTORY = "cloned-repo";
-
-    private static final String APPS_CONFIGURATION_DIRECTORY = "/apps/UK/";
-
-    private static final String INFRA_CONFIGURATION_DIRECTORY = "/infra/UK/";
-
     @Autowired
     public ConfigService(ConfigMapper configMapper, ConfigRepository configRepository) {
         this.configMapper = configMapper;
@@ -39,14 +35,14 @@ public class ConfigService {
 
     @Transactional
     public List<ConfigDTO> createConfigMap(String domain, String REPO_URL, String username, String password) throws GitAPIException, IOException {
-        File localPath = new File(LOCAL_CLONE_DIRECTORY);
+        File localPath = new File(Utility.LOCAL_CLONE_DIRECTORY);
         Path localPathAsPath = localPath.toPath();
 
         log.info("Deleting the local repository:");
-        FileLocator.deleteDirectory(localPathAsPath);
+        ConfigUtil.deleteDirectory(localPathAsPath);
 
         log.info("Cloning git repo to local:");
-        FileLocator.gitCheckoutCode(REPO_URL, localPath, username, password);
+        ConfigUtil.gitCheckoutCode(REPO_URL, localPath, username, password);
 
         log.info("Reading application configuration:");
         Map<String, Map<String, Map<String, String>>> applications = this.readApplicationConfiguration(domain);
@@ -55,7 +51,7 @@ public class ConfigService {
         List<Map<String, String>> infrastructureData =  this.readInfraStructureConfiguration(applications, domain);
 
         log.info("Deleting the local repository:");
-        FileLocator.deleteDirectory(localPathAsPath);
+        ConfigUtil.deleteDirectory(localPathAsPath);
 
         log.info("Converting Map to DTO:");
         List<ConfigDTO> appConfigsDTO = configMapper.mapToDto(infrastructureData);
@@ -69,7 +65,7 @@ public class ConfigService {
     }
 
     public Map<String, Map<String, Map<String, String>>> readApplicationConfiguration(String domain){
-        File appDirectory = new File(LOCAL_CLONE_DIRECTORY + APPS_CONFIGURATION_DIRECTORY);
+        File appDirectory = new File(Utility.LOCAL_CLONE_DIRECTORY + Utility.APPS_CONFIGURATION_DIRECTORY);
 
         log.info("List of environments in apps:");
         Set<String> appEnvironments = this.getEnvironments(appDirectory);
@@ -78,7 +74,7 @@ public class ConfigService {
         Map<String, Map<String, Map<String, String>>> applications =  new HashMap<>();
 
         for(String environment : appEnvironments){
-            applicationData = FileLocator.getApplicationConfigs(LOCAL_CLONE_DIRECTORY + APPS_CONFIGURATION_DIRECTORY, environment, domain);
+            applicationData = ConfigUtil.getApplicationConfigs(Utility.LOCAL_CLONE_DIRECTORY + Utility.APPS_CONFIGURATION_DIRECTORY, environment, domain);
             applications.put(environment, applicationData);
         }
 
@@ -86,7 +82,7 @@ public class ConfigService {
     }
 
     public List<Map<String, String>> readInfraStructureConfiguration(Map<String, Map<String, Map<String, String>>> applications, String domain){
-        File infraDirectory = new File(LOCAL_CLONE_DIRECTORY + INFRA_CONFIGURATION_DIRECTORY);
+        File infraDirectory = new File(Utility.LOCAL_CLONE_DIRECTORY + Utility.INFRA_CONFIGURATION_DIRECTORY);
 
         log.info("List of environments in infra:");
         Set<String> infraEnvironments = this.getEnvironments(infraDirectory);
@@ -95,7 +91,7 @@ public class ConfigService {
         List<Map<String, String>> infrastructureData =  new ArrayList<>();
 
         for(String environment : infraEnvironments){
-            apaasDataForEveryApps = FileLocator.getApaasId(LOCAL_CLONE_DIRECTORY + INFRA_CONFIGURATION_DIRECTORY, environment, applications.get(environment), domain);
+            apaasDataForEveryApps = ConfigUtil.getApaasId(Utility.LOCAL_CLONE_DIRECTORY + Utility.INFRA_CONFIGURATION_DIRECTORY, environment, applications.get(environment), domain);
             infrastructureData.addAll(apaasDataForEveryApps);
         }
 

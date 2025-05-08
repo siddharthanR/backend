@@ -2,7 +2,6 @@ package com.bpaz.backend.config.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
@@ -15,7 +14,7 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Stream;
 
-public class FileLocator {
+public class ConfigUtil {
 
     public static void gitCheckoutCode(String REPO_URL, File localPath, String username, String password) throws GitAPIException {
         UsernamePasswordCredentialsProvider userNameAndPassword = new UsernamePasswordCredentialsProvider(username, password);
@@ -24,7 +23,7 @@ public class FileLocator {
                 .setURI(REPO_URL)
                 .setDirectory(localPath)
                 .setCredentialsProvider(userNameAndPassword)
-                .setBranch("master")
+                .setBranch("main")
                 .call();
     }
 
@@ -34,7 +33,7 @@ public class FileLocator {
 
         return Arrays.stream(Objects.requireNonNull(localRepository.listFiles()))
                 .filter(File::isDirectory)
-                .flatMap(file -> findConfigJson(file, "infra.json"))
+                .flatMap(file -> findConfigJson(file, Utility.INFRA_FILE))
                 .map(file -> {
                     Map<String, String> infrastructureMap = readJsonProperties(file, List.of("apaasV4ID"), objectMapper);
                     String applicationName = file.getParentFile().getName();
@@ -60,7 +59,7 @@ public class FileLocator {
 
         Arrays.stream(Objects.requireNonNull(localRepository.listFiles()))
                .filter(File::isDirectory)
-                .flatMap(file -> findConfigJson(file, "config.json"))
+                .flatMap(file -> findConfigJson(file, Utility.CONFIG_FILE))
                 .forEach(file -> {
                     Map<String, String> applicationMap = readJsonProperties(file, Arrays.asList("APP_CPU_REQUEST", "APP_CPU_LIMIT", "APP_MEMORY_REQUEST", "APP_MEMORY_LIMIT", "REPLICAS"), mapper);
                     String applicationName = file.getParentFile().getParentFile().getParentFile().getName();
@@ -72,7 +71,7 @@ public class FileLocator {
         return groupByApplications;
     }
 
-    private static Stream<File> findConfigJson(File dir, String fileName) {
+    public static Stream<File> findConfigJson(File dir, String fileName) {
         File[] files = dir.listFiles();
         if (files == null) return Stream.empty();
 
@@ -88,7 +87,7 @@ public class FileLocator {
                 });
     }
 
-    private static Map<String, String> readJsonProperties(File file, List<String> keys, ObjectMapper mapper) {
+    public static Map<String, String> readJsonProperties(File file, List<String> keys, ObjectMapper mapper) {
         Map<String, String> result = new HashMap<>();
         try {
             JsonNode root = mapper.readTree(file);
@@ -105,13 +104,15 @@ public class FileLocator {
         return result;
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     public static void deleteDirectory(Path path) throws IOException {
         if (!Files.exists(path)) return;
 
-        Files.walk(path)
-                .sorted(Comparator.reverseOrder())
-                .map(Path::toFile)
-                .forEach(File::delete);
+        try (Stream<Path> configRepositoryPath = Files.walk(path)) {
+            configRepositoryPath.sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(File::delete);
+        }
     }
 
 }
