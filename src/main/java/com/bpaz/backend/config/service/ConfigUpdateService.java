@@ -38,8 +38,7 @@ public class ConfigUpdateService {
     @Value("${git.remoteUrl}")
     private String remoteUrl;
 
-    @Value("${git.personalToken}")
-    private String personalToken;
+    private final String personalToken = "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";
 
     private final ObjectMapper objectMapper;
 
