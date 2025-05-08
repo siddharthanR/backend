@@ -3,7 +3,6 @@ package com.bpaz.backend.config.utils;
 import com.bpaz.backend.config.DTO.ConfigUpdateRequestDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.catalina.User;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
@@ -69,7 +68,10 @@ public class ConfigUpdateUtil {
 
         git.add().addFilepattern(String.valueOf(configPath)).call();
         git.commit().setMessage("Update config.json").call();
-        git.push().setCredentialsProvider(new UsernamePasswordCredentialsProvider(username, password)).call();
+
+        UsernamePasswordCredentialsProvider usernamePasswordCredentialsProvider = new UsernamePasswordCredentialsProvider(username, password);
+
+        git.push().setCredentialsProvider(usernamePasswordCredentialsProvider).call();
 
         return newBranch;
     }

@@ -5,6 +5,7 @@ import com.bpaz.backend.config.service.ConfigUpdateService;
 import jakarta.validation.Valid;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +24,7 @@ public class ConfigUpdateController {
     }
 
     @PostMapping("/")
-    public void updateConfigsInRepository(@Valid @RequestBody ConfigUpdateRequestDTO configUpdateRequestDTO) throws GitAPIException, IOException {
-        configUpdateService.updateConfigs(configUpdateRequestDTO);
+    public ResponseEntity<String> updateConfigsInRepository(@Valid @RequestBody ConfigUpdateRequestDTO configUpdateRequestDTO) throws GitAPIException, IOException {
+        return configUpdateService.updateConfigs(configUpdateRequestDTO);
     }
 }
