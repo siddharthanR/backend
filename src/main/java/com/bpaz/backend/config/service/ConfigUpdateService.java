@@ -40,9 +40,6 @@ public class ConfigUpdateService {
     @Value("${git.remoteUrl}")
     private String remoteUrl;
 
-    @Value("${git.personalToken}")
-    private String personalToken;
-
     @Value("${git.fineGrainedToken}")
     private String fineGrainedToken;
 
@@ -71,7 +68,7 @@ public class ConfigUpdateService {
         String configJson = ConfigUpdateUtil.updateConfigJson(configPath, objectMapper, configUpdateRequestDTO);
 
         log.info("Creating new branch:");
-        String newBranch = ConfigUpdateUtil.createNewBranchAndSave(git, configPath, configJson, username, personalToken);
+        String newBranch = ConfigUpdateUtil.createNewBranchAndSave(git, configPath, configJson, username, fineGrainedToken);
 
         log.info("Deleting local folder:");
         ConfigUtil.deleteDirectory(localPath);
