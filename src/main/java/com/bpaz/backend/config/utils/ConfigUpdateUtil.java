@@ -11,21 +11,23 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class ConfigUpdateUtil {
 
-    public static Git cloneGitRepository(String remoteUrl, String username, String password, File localRepository) throws GitAPIException {
+    public static void cloneGitRepository(String remoteUrl, String username, String password, File localRepository) throws GitAPIException {
         UsernamePasswordCredentialsProvider usernamePasswordCredentialsProvider = new UsernamePasswordCredentialsProvider(username, password);
 
-        return Git.cloneRepository()
+        Git git = Git.cloneRepository()
                 .setURI(remoteUrl)
                 .setCredentialsProvider(usernamePasswordCredentialsProvider)
                 .setDirectory(localRepository)
                 .setBranch("main")
                 .call();
+        git.close();
     }
 
     public static Path locateAppConfig(String baseDirectory, String applicationName, String env)throws IOException {
@@ -61,17 +63,26 @@ public class ConfigUpdateUtil {
         return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(updatedConfig);
     }
 
-    public static String createNewBranchAndSave(Git git, Path configPath, String configJson, String username, String personalToken) throws GitAPIException, IOException{
-        String newBranch = "updated-config.json" + System.currentTimeMillis();
-        git.checkout().setCreateBranch(true).setName(newBranch).call();
-        Files.writeString(configPath, configJson);
+    public static String createNewBranchAndSave(Path configPath, String configJson, String username, String personalToken) throws GitAPIException, IOException{
 
-        git.add().addFilepattern(String.valueOf(configPath)).call();
-        git.commit().setMessage("Update config.json").call();
+        String newBranch;
+        try (Git git = Git.open(new File(Utility.LOCAL_CLONE_DIRECTORY))) {
+            newBranch = "FRAUDPL-484";
+            git.checkout().setCreateBranch(true).setName(newBranch).call();
 
-        UsernamePasswordCredentialsProvider usernamePasswordCredentialsProvider = new UsernamePasswordCredentialsProvider(username, personalToken);
+            Files.writeString(configPath, configJson);
 
-        git.push().setCredentialsProvider(usernamePasswordCredentialsProvider).call();
+            Path repoRoot = Paths.get("cloned-repo");
+
+            Path relativePath = repoRoot.relativize(configPath);
+
+            git.add().addFilepattern(String.valueOf(relativePath)).call();
+            git.commit().setMessage("Update config.json").call();
+
+            UsernamePasswordCredentialsProvider usernamePasswordCredentialsProvider = new UsernamePasswordCredentialsProvider(username, personalToken);
+
+            git.push().setRemote("origin").add(newBranch).setCredentialsProvider(usernamePasswordCredentialsProvider).call();
+        }
 
         return newBranch;
     }

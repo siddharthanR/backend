@@ -5,11 +5,9 @@ import com.bpaz.backend.config.DTO.ConfigUpdateResponseDTO;
 import com.bpaz.backend.config.utils.ConfigUpdateUtil;
 import com.bpaz.backend.config.utils.ConfigUtil;
 import com.bpaz.backend.config.utils.Utility;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,8 +38,8 @@ public class ConfigUpdateService {
     @Value("${git.remoteUrl}")
     private String remoteUrl;
 
-    @Value("${git.fineGrainedToken}")
-    private String fineGrainedToken;
+    @Value("${git.personalToken}")
+    private String personalToken;
 
     private final ObjectMapper objectMapper;
 
@@ -59,7 +57,7 @@ public class ConfigUpdateService {
         ConfigUtil.deleteDirectory(localPath);
 
         log.info("Cloning git repository:");
-        Git git = ConfigUpdateUtil.cloneGitRepository(remoteUrl, username, password, localRepository);
+        ConfigUpdateUtil.cloneGitRepository(remoteUrl, username, password, localRepository);
 
         log.info("Locating config.json:");
         Path configPath = ConfigUpdateUtil.locateAppConfig(Utility.LOCAL_CLONE_DIRECTORY, configUpdateRequestDTO.getApplicationName(), configUpdateRequestDTO.getEnv());
@@ -68,18 +66,15 @@ public class ConfigUpdateService {
         String configJson = ConfigUpdateUtil.updateConfigJson(configPath, objectMapper, configUpdateRequestDTO);
 
         log.info("Creating new branch:");
-        String newBranch = ConfigUpdateUtil.createNewBranchAndSave(git, configPath, configJson, username, fineGrainedToken);
+        String newBranch = ConfigUpdateUtil.createNewBranchAndSave(configPath, configJson, username, personalToken);
 
-        log.info("Deleting local folder:");
-        ConfigUtil.deleteDirectory(localPath);
-
-        return this.createPullRequest(newBranch, objectMapper);
+        return this.createPullRequest(newBranch, objectMapper, localPath);
     }
 
-    public ConfigUpdateResponseDTO createPullRequest(String newBranch, ObjectMapper objectMapper)throws JsonProcessingException {
+    public ConfigUpdateResponseDTO createPullRequest(String newBranch, ObjectMapper objectMapper, Path localPath) throws IOException {
         RestTemplate restTemplate = new RestTemplate();
         MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
-        headers.add("Authorization", "Bearer " + fineGrainedToken);
+        headers.add("Authorization", "Bearer " + personalToken);
         headers.add("Accept", "application/vnd.github+json");
 
         Map<String, String> prBody = new HashMap<>();
@@ -104,6 +99,9 @@ public class ConfigUpdateService {
         String pullRequestURL = responseInJson.get("html_url").asText();
         ConfigUpdateResponseDTO configUpdateResponseDTO = new ConfigUpdateResponseDTO();
         configUpdateResponseDTO.setPullRequestURL(pullRequestURL);
+
+        log.info("Deleting local folder:");
+        ConfigUtil.deleteDirectory(localPath);
 
         return configUpdateResponseDTO;
     }
